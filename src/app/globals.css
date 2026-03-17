@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Arial, sans-serif;
+}
+
+/* Botones táctiles grandes para tablet */
+.btn-paj {
+  @apply w-12 h-12 rounded-lg font-bold text-base border-2 transition-all duration-100 flex items-center justify-center select-none active:scale-95;
+}
+.btn-P { @apply border-green-500 text-green-500; }
+.btn-P.on { @apply bg-green-500 text-white; }
+.btn-A { @apply border-red-500 text-red-500; }
+.btn-A.on { @apply bg-red-500 text-white; }
+.btn-J { @apply border-yellow-500 text-yellow-500; }
+.btn-J.on { @apply bg-yellow-500 text-white; }
