@@ -26,17 +26,18 @@ export default function Alertas() {
     // Detectar rachas
     const porEst = new Map<number, { nombre: string; grado: string; contacto: string; fechas: string[] }>()
     for (const r of data as any[]) {
-      const id  = r.estudiante_id
+      const id  = r.estudiante_id as number
       const nom = r.estudiantes?.nombre ?? ''
       const gr  = r.estudiantes?.grados?.nombre ?? ''
       const con = r.estudiantes?.contacto ?? 'Sin contacto'
       if (grado !== 'Todos' && gr !== grado) continue
       if (!porEst.has(id)) porEst.set(id, { nombre: nom, grado: gr, contacto: con, fechas: [] })
-      porEst.get(id)!.fechas.push(r.fecha)
+      porEst.get(id)!.fechas.push(r.fecha as string)
     }
 
     const result: Alerta[] = []
-    for (const [, e] of porEst) {
+    const entries = Array.from(porEst.values())
+    for (const e of entries) {
       const fechas = e.fechas.sort().reverse()
       let racha = 1
       for (let i = 1; i < fechas.length; i++) {
