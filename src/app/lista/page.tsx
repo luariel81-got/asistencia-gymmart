@@ -12,6 +12,7 @@ export default function PasarLista() {
   const [alumnos, setAlumnos] = useState<Alumno[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving]   = useState<number | null>(null)
+  const [confirmBorrar, setConfirmBorrar] = useState(false)
   const [guardado, setGuardado] = useState<number | null>(null)
   const [reporte, setReporte]  = useState<{ id: number; data: Reporte[] } | null>(null)
   const [loadingRep, setLoadingRep] = useState(false)
@@ -40,11 +41,14 @@ export default function PasarLista() {
   }
 
   // Marcar todos presentes
+  const [confirmTodos, setConfirmTodos] = useState(false)
+
   async function marcarTodosPresentes() {
     setAlumnos(prev => prev.map(a => ({ ...a, estado: 'P' })))
     setSaving(-1)
     await Promise.all(alumnos.map(a => guardarEstado(a.id, fecha, turno, 'P')))
     setSaving(null)
+    setConfirmTodos(false)
   }
 
   // Guardar toda la lista de una vez
@@ -54,6 +58,22 @@ export default function PasarLista() {
     setSaving(null)
     setGuardado(-1)
     setTimeout(() => setGuardado(null), 2000)
+  }
+
+  // Borrar lista del día
+  async function borrarLista() {
+    setSaving(-1)
+    const ids = alumnos.map(a => a.id)
+    await supabase
+      .from('asistencia')
+      .delete()
+      .in('estudiante_id', ids)
+      .eq('fecha', fecha)
+      .eq('turno', turno)
+    setSaving(null)
+    setConfirmBorrar(false)
+    // Recargar lista desde BD
+    await cargarLista()
   }
 
   // Ver reporte del alumno
@@ -141,10 +161,23 @@ export default function PasarLista() {
 
       {/* Acciones */}
       <div className="flex gap-2 mb-4">
-        <button onClick={marcarTodosPresentes} disabled={saving !== null}
-          className="flex-1 py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-medium active:scale-95 transition-transform">
-          ✅ Todos Presentes
-        </button>
+        {!confirmTodos ? (
+          <button onClick={() => setConfirmTodos(true)} disabled={saving !== null}
+            className="flex-1 py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-lg text-sm font-medium active:scale-95 transition-transform">
+            ✅ Todos Presentes
+          </button>
+        ) : (
+          <div className="flex-1 flex gap-1">
+            <button onClick={() => setConfirmTodos(false)}
+              className="flex-1 py-2.5 border border-gray-200 rounded-lg text-gray-500 text-xs bg-white">
+              ✕
+            </button>
+            <button onClick={marcarTodosPresentes}
+              className="flex-1 py-2.5 bg-green-500 text-white rounded-lg text-xs font-bold active:scale-95">
+              ✓ Confirmar
+            </button>
+          </div>
+        )}
         <button onClick={() => setFormAgregar(!formAgregar)}
           className="px-4 py-2.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-sm font-medium active:scale-95 transition-transform">
           ➕
@@ -265,16 +298,42 @@ export default function PasarLista() {
         </div>
       )}
 
-      {/* Botón guardar todo */}
+      {/* Botones guardar y borrar */}
       {alumnos.length > 0 && (
-        <button onClick={guardarTodo} disabled={saving !== null}
-          className={`w-full mt-4 py-3.5 rounded-xl font-bold text-white text-base transition-all active:scale-95 ${
-            saving !== null ? 'bg-gray-400' :
-            guardado === -1 ? 'bg-green-500' : 'bg-blue-600'
-          }`}>
-          {saving !== null ? '⏳ Guardando...' :
-           guardado === -1 ? '✅ ¡Guardado!' : '💾 Guardar todo'}
-        </button>
+        <div className="mt-4 space-y-2">
+          <button onClick={guardarTodo} disabled={saving !== null}
+            className={`w-full py-3.5 rounded-xl font-bold text-white text-base transition-all active:scale-95 ${
+              saving !== null ? 'bg-gray-400' :
+              guardado === -1 ? 'bg-green-500' : 'bg-blue-600'
+            }`}>
+            {saving !== null ? '⏳ Guardando...' :
+             guardado === -1 ? '✅ ¡Guardado!' : '💾 Guardar todo'}
+          </button>
+
+          {!confirmBorrar ? (
+            <button onClick={() => setConfirmBorrar(true)}
+              className="w-full py-2.5 rounded-xl font-medium text-sm text-red-500 border border-red-200 bg-red-50 active:scale-95 transition-all">
+              🗑️ Borrar lista del día
+            </button>
+          ) : (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+              <p className="text-sm text-red-700 font-medium mb-2 text-center">
+                ¿Borrar todos los registros de <strong>{grado} — {turno} — {fecha}</strong>?
+              </p>
+              <p className="text-xs text-red-500 text-center mb-3">Esta acción no se puede deshacer</p>
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmBorrar(false)}
+                  className="flex-1 py-2.5 border border-gray-200 rounded-lg text-gray-600 text-sm font-medium bg-white">
+                  Cancelar
+                </button>
+                <button onClick={borrarLista} disabled={saving !== null}
+                  className="flex-1 py-2.5 bg-red-600 text-white rounded-lg text-sm font-bold active:scale-95">
+                  {saving !== null ? '⏳...' : '🗑️ Sí, borrar'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
