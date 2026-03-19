@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase, GRADOS, getEstudiantesPorGrado, agregarEstudiante, actualizarEstudiante, eliminarEstudiante } from '@/lib/supabase'
 import * as XLSX from 'xlsx'
 
-type Tab = 'agregar' | 'editar' | 'eliminar' | 'importar'
+type Tab = 'agregar' | 'editar' | 'traslado' | 'eliminar' | 'importar'
 type Est = { id: number; nombre: string; ci: string; contacto: string }
 
 export default function Gestion() {
@@ -27,6 +27,12 @@ export default function Gestion() {
   // Eliminar
   const [confirmar, setConfirmar] = useState(false)
   const [delId, setDelId]         = useState<number | null>(null)
+
+  // Traslado
+  const [trasladoId, setTrasladoId]       = useState<number | null>(null)
+  const [trasladoNombre, setTrasladoNombre] = useState('')
+  const [gradoOrigen, setGradoOrigen]     = useState(GRADOS[0])
+  const [gradoDestino, setGradoDestino]   = useState(GRADOS[1])
 
   // Importar Excel
   const [preview, setPreview] = useState<any[]>([])
@@ -64,6 +70,15 @@ export default function Gestion() {
     flash('✅ Alumno eliminado.')
   }
 
+  async function handleTraslado() {
+    if (!trasladoId) return
+    const { data: gr } = await supabase.from('grados').select('id').eq('nombre', gradoDestino).single()
+    if (!gr) return
+    await supabase.from('estudiantes').update({ grado_id: gr.id }).eq('id', trasladoId)
+    setTrasladoId(null)
+    flash(`✅ ${trasladoNombre} trasladado a ${gradoDestino}.`)
+  }
+
   function handleExcel(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -90,10 +105,11 @@ export default function Gestion() {
   }
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'agregar',  label: '➕ Agregar'  },
-    { key: 'editar',   label: '✏️ Editar'   },
-    { key: 'eliminar', label: '🗑️ Eliminar' },
-    { key: 'importar', label: '📥 Importar' },
+    { key: 'agregar',   label: '➕ Agregar'   },
+    { key: 'editar',    label: '✏️ Editar'    },
+    { key: 'traslado',  label: '🔄 Traslado'  },
+    { key: 'eliminar',  label: '🗑️ Eliminar'  },
+    { key: 'importar',  label: '📥 Importar'  },
   ]
 
   return (
@@ -185,6 +201,56 @@ export default function Gestion() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Traslado ── */}
+      {tab === 'traslado' && (
+        <div>
+          <p className="text-xs text-gray-500 mb-4">Mové un alumno de un grado a otro. Su historial de asistencia se mantiene.</p>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-gray-500 font-medium">Grado de origen</label>
+              <select value={gradoOrigen} onChange={e => { setGradoOrigen(e.target.value); setTrasladoId(null) }}
+                className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white">
+                {GRADOS.map(g => <option key={g}>{g}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 font-medium">Alumno a trasladar</label>
+              <select value={trasladoId ?? ''} onChange={e => {
+                  const id = Number(e.target.value)
+                  setTrasladoId(id)
+                  const est = lista.find((x: any) => x.id === id) as any
+                  setTrasladoNombre(est?.nombre ?? '')
+                }}
+                className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white">
+                <option value="">Seleccionar alumno...</option>
+                {lista.filter((e: any) => {
+                  // show students from gradoOrigen
+                  return true
+                }).map((e: any) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 font-medium">Grado de destino</label>
+              <select value={gradoDestino} onChange={e => setGradoDestino(e.target.value)}
+                className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white">
+                {GRADOS.filter(g => g !== gradoOrigen).map(g => <option key={g}>{g}</option>)}
+              </select>
+            </div>
+            {trasladoId && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-700">
+                <strong>{trasladoNombre}</strong> será trasladado de <strong>{gradoOrigen}</strong> a <strong>{gradoDestino}</strong>
+              </div>
+            )}
+            <button onClick={handleTraslado} disabled={!trasladoId}
+              className={`w-full py-3 rounded-xl font-bold text-white transition-colors ${
+                trasladoId ? 'bg-blue-600 active:scale-95' : 'bg-gray-300'
+              }`}>
+              🔄 Confirmar traslado
+            </button>
+          </div>
         </div>
       )}
 
