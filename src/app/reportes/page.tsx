@@ -35,6 +35,14 @@ export default function Reportes() {
       .eq('estado', 'Ausente Justificado')
       .order('estudiante_id')
 
+    // Ordenar por grado y luego por nombre
+    const justOrdenado = [...(justData ?? []) as any[]].sort((a, b) => {
+      const ga = a.estudiantes?.grados?.nombre ?? ''
+      const gb = b.estudiantes?.grados?.nombre ?? ''
+      if (ga !== gb) return GRADOS.indexOf(ga) - GRADOS.indexOf(gb)
+      return (a.estudiantes?.nombre ?? '').localeCompare(b.estudiantes?.nombre ?? '')
+    })
+
     if ((justData ?? []).length === 0) {
       setTextoJust(`Buenas queridos docentes 🙏\n\nNo hay ausencias justificadas para el ${fechaStr}.\n\n¡Bendiciones!`)
     } else {
@@ -45,7 +53,7 @@ export default function Reportes() {
         ``,
       ]
       let gradoAct = ''
-      for (const r of justData as any[]) {
+      for (const r of justOrdenado) {
         const g = r.estudiantes?.grados?.nombre ?? ''
         const n = r.estudiantes?.nombre ?? ''
         if (g !== gradoAct) {
