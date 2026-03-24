@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { GRADOS, TURNOS, hoyPY, supabase } from '@/lib/supabase'
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 
 type Periodo = 'dia' | 'semana' | 'mes'
 
