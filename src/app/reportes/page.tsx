@@ -26,24 +26,34 @@ export default function Reportes() {
     setLoading(true)
     const fechaStr = formatFecha(fecha)
 
-    // ── Justificados (todos los grados juntos) ──
-    const { data: justData } = await supabase
+    // ── Justificados — consulta directa agrupando por grado ──
+    // Primero obtener los IDs y luego unir con estudiantes para evitar problemas de join
+    const { data: justRaw } = await supabase
       .from('asistencia')
-      .select('estudiante_id, estudiantes!inner(nombre, grados!inner(nombre))')
+      .select('estudiante_id')
       .eq('fecha', fecha)
       .eq('turno', turno)
       .eq('estado', 'Ausente Justificado')
-      .order('estudiante_id')
 
-    // Ordenar por grado y luego por nombre
-    const justOrdenado = [...(justData ?? []) as any[]].sort((a, b) => {
-      const ga = a.estudiantes?.grados?.nombre ?? ''
-      const gb = b.estudiantes?.grados?.nombre ?? ''
-      if (ga !== gb) return GRADOS.indexOf(ga) - GRADOS.indexOf(gb)
-      return (a.estudiantes?.nombre ?? '').localeCompare(b.estudiantes?.nombre ?? '')
-    })
+    const justIds = (justRaw ?? []).map((r: any) => r.estudiante_id)
 
-    if ((justData ?? []).length === 0) {
+    let justOrdenado: any[] = []
+    if (justIds.length > 0) {
+      const { data: justEst } = await supabase
+        .from('estudiantes')
+        .select('id, nombre, grados(nombre)')
+        .in('id', justIds)
+        .order('nombre')
+      // Ordenar por grado según GRADOS array, luego por nombre
+      justOrdenado = [...(justEst ?? []) as any[]].sort((a, b) => {
+        const ga = a.grados?.nombre ?? ''
+        const gb = b.grados?.nombre ?? ''
+        if (ga !== gb) return GRADOS.indexOf(ga) - GRADOS.indexOf(gb)
+        return (a.nombre ?? '').localeCompare(b.nombre ?? '')
+      })
+    }
+
+    if (justOrdenado.length === 0) {
       setTextoJust(`Buenas queridos docentes 🙏\n\nNo hay ausencias justificadas para el ${fechaStr}.\n\n¡Bendiciones!`)
     } else {
       let lineas = [
@@ -54,8 +64,8 @@ export default function Reportes() {
       ]
       let gradoAct = ''
       for (const r of justOrdenado) {
-        const g = r.estudiantes?.grados?.nombre ?? ''
-        const n = r.estudiantes?.nombre ?? ''
+        const g = r.grados?.nombre ?? ''
+        const n = r.nombre ?? ''
         if (g !== gradoAct) {
           if (gradoAct) lineas.push('')
           gradoAct = g
