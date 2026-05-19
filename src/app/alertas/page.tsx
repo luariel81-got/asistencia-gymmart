@@ -38,13 +38,31 @@ export default function Alertas() {
     const result: Alerta[] = []
     for (const e of Array.from(porEst.values())) {
       const regs = e.registros.sort((a, b) => b.fecha.localeCompare(a.fecha))
+
+      // Si el registro más reciente es Presente, no hay alerta
       if (regs[0]?.estado === 'Presente') continue
+
       let racha = 0, desde = ''
       for (const reg of regs) {
-        if (reg.estado === 'Ausente Injustificado') { racha++; desde = reg.fecha }
-        else break
+        if (reg.estado === 'Ausente Injustificado') {
+          racha++
+          desde = reg.fecha
+        } else if (reg.estado === 'Ausente Justificado') {
+          // Justificado no rompe la racha de injustificados
+          continue
+        } else {
+          // Presente sí rompe la racha
+          break
+        }
       }
-      if (racha >= 2) result.push({ nombre: e.nombre, grado: e.grado, contacto: e.contacto || 'Sin contacto', faltas: racha, desde })
+
+      if (racha >= 2) result.push({
+        nombre: e.nombre,
+        grado: e.grado,
+        contacto: e.contacto || 'Sin contacto',
+        faltas: racha,
+        desde,
+      })
     }
 
     result.sort((a, b) => b.faltas - a.faltas)
