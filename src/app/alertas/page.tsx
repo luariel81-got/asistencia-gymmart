@@ -16,14 +16,14 @@ export default function Alertas() {
     setLoading(true)
     const { data } = await supabase
       .from('asistencia')
-      .select('estudiante_id, fecha, estado, estudiantes!inner(nombre, contacto, grados!inner(nombre))')
+      .select('estudiante_id, fecha, estado, turno, estudiantes!inner(nombre, contacto, grados!inner(nombre))')
       .eq('turno', turno)
       .order('estudiante_id')
       .order('fecha', { ascending: false })
 
     if (!data) { setLoading(false); return }
 
-    const porEst = new Map<number, { nombre: string; grado: string; contacto: string; registros: { fecha: string; estado: string }[] }>()
+    const porEst = new Map<number, { nombre: string; grado: string; contacto: string; registros: { fecha: string; estado: string; turno: string }[] }>()
 
     for (const r of data as any[]) {
       const id = r.estudiante_id as number
@@ -32,12 +32,15 @@ export default function Alertas() {
       if (!porEst.has(id)) {
         porEst.set(id, { nombre: r.estudiantes?.nombre ?? '', grado: gr, contacto: r.estudiantes?.contacto ?? '', registros: [] })
       }
-      porEst.get(id)!.registros.push({ fecha: r.fecha, estado: r.estado })
+      porEst.get(id)!.registros.push({ fecha: r.fecha, estado: r.estado, turno: r.turno })
     }
 
     const result: Alerta[] = []
     for (const e of Array.from(porEst.values())) {
-      const regs = e.registros.sort((a, b) => b.fecha.localeCompare(a.fecha))
+      // Solo registros del turno seleccionado, ordenados por fecha desc
+      const regs = e.registros
+        .filter(r => r.turno === turno)
+        .sort((a, b) => b.fecha.localeCompare(a.fecha))
 
       // Si el registro más reciente es Presente, no hay alerta
       if (regs[0]?.estado === 'Presente') continue
@@ -48,10 +51,9 @@ export default function Alertas() {
           racha++
           desde = reg.fecha
         } else if (reg.estado === 'Ausente Justificado') {
-          // Justificado no rompe la racha de injustificados
           continue
         } else {
-          // Presente sí rompe la racha
+          // Presente rompe la racha
           break
         }
       }
